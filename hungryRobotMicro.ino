@@ -14,6 +14,10 @@ Servo myservo;  // create servo object to control a servo
 CRGB leds[NUM_LEDS];
 #define UPDATES_PER_SECOND 100
 
+#define MOUTH_OPEN 10
+#define MOUTH_CLOSE 90
+
+
 CRGBPalette16 currentPalette;
 TBlendType currentBlending;
 
@@ -37,6 +41,37 @@ void setup() {
 
     Serial.begin(9600);  // Starts the serial communication
 }
+
+void eat(){
+    for (int i = 0; i < NUM_LEDS; i++) {
+        leds[i] = CRGB::Red;
+    }
+    FastLED.show();
+
+    delay(1000);
+    myservo.attach(PIN_MOTOR_PWM);  // attaches the servo on pin 9 to the servo object
+    myservo.write(MOUTH_OPEN);              // sets the servo position according to the scaled value
+    delay(300);
+    myservo.write(MOUTH_CLOSE);              // sets the servo position according to the scaled value
+    delay(500);
+    myservo.detach();
+}
+
+void afterEat(){
+    myservo.attach(PIN_MOTOR_PWM);  // attaches the servo on pin 9 to the servo object
+    myservo.write((MOUTH_CLOSE - MOUTH_OPEN ) / 2);              // sets the servo position according to the scaled value
+    delay(200);
+    myservo.write(MOUTH_CLOSE);              // sets the servo position according to the scaled value
+    delay(200);
+    myservo.write((MOUTH_CLOSE - MOUTH_OPEN ) / 2);              // sets the servo position according to the scaled value
+    delay(200);
+    myservo.write(MOUTH_CLOSE);              // sets the servo position according to the scaled value
+    delay(200);
+    myservo.detach();
+    delay(1000);
+}
+
+
 void loop() {
     // Clears the PIN_TRIG
     digitalWrite(PIN_TRIG, LOW);
@@ -54,15 +89,12 @@ void loop() {
     Serial.println(distance);
 
     //   distance = map(distance, 0, 1023, 0, 180);     // scale it to use it with the servo (value between 0 and 180)
-    if (distance < 20) {
-        delay(1000);
-        myservo.attach(PIN_MOTOR_PWM);  // attaches the servo on pin 9 to the servo object
-        myservo.write(10);              // sets the servo position according to the scaled value
-        delay(300);
-        myservo.write(80);
-        delay(500);
-        myservo.detach();
+    if (distance < 10) {
+        eat();
+        afterEat();
     }
+
+
 
     ChangePalettePeriodically();
 
