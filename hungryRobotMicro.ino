@@ -15,7 +15,7 @@ CRGB leds[NUM_LEDS];
 #define UPDATES_PER_SECOND 100
 
 #define MOUTH_OPEN 10
-#define MOUTH_CLOSE 90
+#define MOUTH_CLOSE 80
 
 
 CRGBPalette16 currentPalette;
@@ -26,108 +26,96 @@ extern const TProgmemPalette16 myRedWhiteBluePalette_p PROGMEM;
 
 // defines variables
 long duration;
-int distance;
 
 void setup() {
-    pinMode(PIN_TRIG, OUTPUT);  // Sets the PIN_TRIG as an Output
-    pinMode(PIN_ECHO, INPUT);   // Sets the PIN_ECHO as an Input
-    // myservo.attach(PIN_MOTOR_PWM);  // attaches the servo on pin 9 to the servo object
+  pinMode(PIN_TRIG, OUTPUT);  // Sets the PIN_TRIG as an Output
+  pinMode(PIN_ECHO, INPUT);   // Sets the PIN_ECHO as an Input
+  // myservo.attach(PIN_MOTOR_PWM);  // attaches the servo on pin 9 to the servo object
 
-    FastLED.addLeds<LED_TYPE, PIN_LEDS, COLOR_ORDER>(leds, NUM_LEDS).setCorrection(TypicalLEDStrip);
-    FastLED.setBrightness(BRIGHTNESS);
+  FastLED.addLeds<LED_TYPE, PIN_LEDS, COLOR_ORDER>(leds, NUM_LEDS).setCorrection(TypicalLEDStrip);
+  FastLED.setBrightness(BRIGHTNESS);
 
-    currentPalette = RainbowColors_p;
-    currentBlending = LINEARBLEND;
+  currentPalette = RainbowColors_p;
+  currentBlending = LINEARBLEND;
 
-    Serial.begin(9600);  // Starts the serial communication
+  Serial.begin(9600);  // Starts the serial communication
 }
 
-void eat(){
-    for (int i = 0; i < NUM_LEDS; i++) {
-        leds[i] = CRGB::Red;
-    }
-    FastLED.show();
-
-    delay(1000);
-    myservo.attach(PIN_MOTOR_PWM);  // attaches the servo on pin 9 to the servo object
-    myservo.write(MOUTH_OPEN);              // sets the servo position according to the scaled value
-    delay(300);
-    myservo.write(MOUTH_CLOSE);              // sets the servo position according to the scaled value
-    delay(500);
-    myservo.detach();
+int sense() {
+  int distance = 0;
+  // Clears the PIN_TRIG
+  digitalWrite(PIN_TRIG, LOW);
+  delayMicroseconds(2);
+  // Sets the PIN_TRIG on HIGH state for 10 micro seconds
+  digitalWrite(PIN_TRIG, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(PIN_TRIG, LOW);
+  // Reads the PIN_ECHO, returns the sound wave travel time in microseconds
+  duration = pulseIn(PIN_ECHO, HIGH);
+  // Calculating the distance
+  distance = duration * 0.034 / 2;
+  // Prints the distance on the Serial Monitor
+  Serial.print("Distance: ");
+  Serial.println(distance);
+  return distance;
 }
 
-void afterEat(){
-    myservo.attach(PIN_MOTOR_PWM);  // attaches the servo on pin 9 to the servo object
-    myservo.write((MOUTH_CLOSE - MOUTH_OPEN ) / 2);              // sets the servo position according to the scaled value
-    delay(200);
-    myservo.write(MOUTH_CLOSE);              // sets the servo position according to the scaled value
-    delay(200);
-    myservo.write((MOUTH_CLOSE - MOUTH_OPEN ) / 2);              // sets the servo position according to the scaled value
-    delay(200);
-    myservo.write(MOUTH_CLOSE);              // sets the servo position according to the scaled value
-    delay(200);
-    myservo.detach();
-    delay(1000);
+void eat() {
+  for (int i = 0; i < NUM_LEDS; i++) {
+    leds[i] = CRGB::Red;
+  }
+  FastLED.show();
+
+  delay(1000);
+  myservo.attach(PIN_MOTOR_PWM);  // attaches the servo on pin 9 to the servo object
+  //    myservo.write(MOUTH_OPEN);              // sets the servo position according to the scaled value
+  myservo.write(MOUTH_OPEN);              // genuin tower pro doesn't work with less than 20
+  delay(300);
+  myservo.write(MOUTH_CLOSE);              // sets the servo position according to the scaled value
+  delay(500);
+  myservo.detach();
+}
+
+void afterEat() {
+  myservo.attach(PIN_MOTOR_PWM);  // attaches the servo on pin 9 to the servo object
+  myservo.write(MOUTH_CLOSE - 30);
+  delay(200);
+  myservo.write(MOUTH_CLOSE);              // sets the servo position according to the scaled value
+  delay(200);
+  myservo.write(MOUTH_CLOSE - 30);
+  delay(200);
+  myservo.write(MOUTH_CLOSE);              // sets the servo position according to the scaled value
+  delay(200);
+  myservo.detach();
 }
 
 
 void loop() {
-    // Clears the PIN_TRIG
-    digitalWrite(PIN_TRIG, LOW);
-    delayMicroseconds(2);
-    // Sets the PIN_TRIG on HIGH state for 10 micro seconds
-    digitalWrite(PIN_TRIG, HIGH);
-    delayMicroseconds(10);
-    digitalWrite(PIN_TRIG, LOW);
-    // Reads the PIN_ECHO, returns the sound wave travel time in microseconds
-    duration = pulseIn(PIN_ECHO, HIGH);
-    // Calculating the distance
-    distance = duration * 0.034 / 2;
-    // Prints the distance on the Serial Monitor
-    Serial.print("Distance: ");
-    Serial.println(distance);
 
-    //   distance = map(distance, 0, 1023, 0, 180);     // scale it to use it with the servo (value between 0 and 180)
-    if (distance < 10) {
-        eat();
-        afterEat();
-    }
+  int distance = sense();
+  if (distance < 10.0) {
+    eat();
+    afterEat();
+  }
 
+  ChangePalettePeriodically();
 
+  static uint8_t startIndex = 0;
+  startIndex = startIndex + 1; /* motion speed */
 
-    ChangePalettePeriodically();
+  FillLEDsFromPaletteColors(startIndex); 
 
-    static uint8_t startIndex = 0;
-    startIndex = startIndex + 1; /* motion speed */
-
-    FillLEDsFromPaletteColors(startIndex);
-
-    FastLED.show();
-    FastLED.delay(1000 / UPDATES_PER_SECOND);
+  FastLED.show();
+  FastLED.delay(1000 / UPDATES_PER_SECOND);
 }
 
-//
-// void loop()
-//{
-//  ChangePalettePeriodically();
-//
-//  static uint8_t startIndex = 0;
-//  startIndex = startIndex + 1; /* motion speed */
-//
-//  FillLEDsFromPaletteColors( startIndex);
-//
-//  FastLED.show();
-//  FastLED.delay(1000 / UPDATES_PER_SECOND);
-//}
-
 void FillLEDsFromPaletteColors(uint8_t colorIndex) {
-    uint8_t brightness = 255;
+  uint8_t brightness = 255;
 
-    for (int i = 0; i < NUM_LEDS; i++) {
-        leds[i] = ColorFromPalette(currentPalette, colorIndex, brightness, currentBlending);
-        colorIndex += 3;
-    }
+  for (int i = 0; i < NUM_LEDS; i++) {
+    leds[i] = ColorFromPalette(currentPalette, colorIndex, brightness, currentBlending);
+    colorIndex += 3;
+  }
 }
 
 // There are several different palettes of colors demonstrated here.
@@ -139,63 +127,63 @@ void FillLEDsFromPaletteColors(uint8_t colorIndex) {
 // code that creates color palettes on the fly.  All are shown here.
 
 void ChangePalettePeriodically() {
-    uint8_t secondHand = (millis() / 1000) % 60;
-    static uint8_t lastSecond = 99;
+  uint8_t secondHand = (millis() / 1000) % 60;
+  static uint8_t lastSecond = 99;
 
-    if (lastSecond != secondHand) {
-        lastSecond = secondHand;
-        if (secondHand == 0) {
-            currentPalette = RainbowColors_p;
-            currentBlending = LINEARBLEND;
-        }
-        if (secondHand == 10) {
-            currentPalette = RainbowStripeColors_p;
-            currentBlending = NOBLEND;
-        }
-        if (secondHand == 15) {
-            currentPalette = RainbowStripeColors_p;
-            currentBlending = LINEARBLEND;
-        }
-        if (secondHand == 20) {
-            SetupPurpleAndGreenPalette();
-            currentBlending = LINEARBLEND;
-        }
-        if (secondHand == 25) {
-            SetupTotallyRandomPalette();
-            currentBlending = LINEARBLEND;
-        }
-        if (secondHand == 30) {
-            SetupBlackAndWhiteStripedPalette();
-            currentBlending = NOBLEND;
-        }
-        if (secondHand == 35) {
-            SetupBlackAndWhiteStripedPalette();
-            currentBlending = LINEARBLEND;
-        }
-        if (secondHand == 40) {
-            currentPalette = CloudColors_p;
-            currentBlending = LINEARBLEND;
-        }
-        if (secondHand == 45) {
-            currentPalette = PartyColors_p;
-            currentBlending = LINEARBLEND;
-        }
-        if (secondHand == 50) {
-            currentPalette = myRedWhiteBluePalette_p;
-            currentBlending = NOBLEND;
-        }
-        if (secondHand == 55) {
-            currentPalette = myRedWhiteBluePalette_p;
-            currentBlending = LINEARBLEND;
-        }
+  if (lastSecond != secondHand) {
+    lastSecond = secondHand;
+    if (secondHand == 0) {
+      currentPalette = RainbowColors_p;
+      currentBlending = LINEARBLEND;
     }
+    if (secondHand == 10) {
+      currentPalette = RainbowStripeColors_p;
+      currentBlending = NOBLEND;
+    }
+    if (secondHand == 15) {
+      currentPalette = RainbowStripeColors_p;
+      currentBlending = LINEARBLEND;
+    }
+    if (secondHand == 20) {
+      SetupPurpleAndGreenPalette();
+      currentBlending = LINEARBLEND;
+    }
+    if (secondHand == 25) {
+      SetupTotallyRandomPalette();
+      currentBlending = LINEARBLEND;
+    }
+    if (secondHand == 30) {
+      SetupBlackAndWhiteStripedPalette();
+      currentBlending = NOBLEND;
+    }
+    if (secondHand == 35) {
+      SetupBlackAndWhiteStripedPalette();
+      currentBlending = LINEARBLEND;
+    }
+    if (secondHand == 40) {
+      currentPalette = CloudColors_p;
+      currentBlending = LINEARBLEND;
+    }
+    if (secondHand == 45) {
+      currentPalette = PartyColors_p;
+      currentBlending = LINEARBLEND;
+    }
+    if (secondHand == 50) {
+      currentPalette = myRedWhiteBluePalette_p;
+      currentBlending = NOBLEND;
+    }
+    if (secondHand == 55) {
+      currentPalette = myRedWhiteBluePalette_p;
+      currentBlending = LINEARBLEND;
+    }
+  }
 }
 
 // This function fills the palette with totally random colors.
 void SetupTotallyRandomPalette() {
-    for (int i = 0; i < 16; i++) {
-        currentPalette[i] = CHSV(random8(), 255, random8());
-    }
+  for (int i = 0; i < 16; i++) {
+    currentPalette[i] = CHSV(random8(), 255, random8());
+  }
 }
 
 // This function sets up a palette of black and white stripes,
@@ -203,26 +191,26 @@ void SetupTotallyRandomPalette() {
 // sixteen CRGB colors, the various fill_* functions can be used
 // to set them up.
 void SetupBlackAndWhiteStripedPalette() {
-    // 'black out' all 16 palette entries...
-    fill_solid(currentPalette, 16, CRGB::Black);
-    // and set every fourth one to white.
-    currentPalette[0] = CRGB::White;
-    currentPalette[4] = CRGB::White;
-    currentPalette[8] = CRGB::White;
-    currentPalette[12] = CRGB::White;
+  // 'black out' all 16 palette entries...
+  fill_solid(currentPalette, 16, CRGB::Black);
+  // and set every fourth one to white.
+  currentPalette[0] = CRGB::White;
+  currentPalette[4] = CRGB::White;
+  currentPalette[8] = CRGB::White;
+  currentPalette[12] = CRGB::White;
 }
 
 // This function sets up a palette of purple and green stripes.
 void SetupPurpleAndGreenPalette() {
-    CRGB purple = CHSV(HUE_PURPLE, 255, 255);
-    CRGB green = CHSV(HUE_GREEN, 255, 255);
-    CRGB black = CRGB::Black;
+  CRGB purple = CHSV(HUE_PURPLE, 255, 255);
+  CRGB green = CHSV(HUE_GREEN, 255, 255);
+  CRGB black = CRGB::Black;
 
-    currentPalette = CRGBPalette16(
-        green, green, black, black,
-        purple, purple, black, black,
-        green, green, black, black,
-        purple, purple, black, black);
+  currentPalette = CRGBPalette16(
+                     green, green, black, black,
+                     purple, purple, black, black,
+                     green, green, black, black,
+                     purple, purple, black, black);
 }
 
 // This example shows how to set up a static color palette
@@ -230,25 +218,26 @@ void SetupPurpleAndGreenPalette() {
 // plentiful than RAM.  A static PROGMEM palette like this
 // takes up 64 bytes of flash.
 const TProgmemPalette16 myRedWhiteBluePalette_p PROGMEM =
-    {
-        CRGB::Red,
-        CRGB::Gray,  // 'white' is too bright compared to red and blue
-        CRGB::Blue,
-        CRGB::Black,
+{
+  CRGB::Red,
+  CRGB::Gray,  // 'white' is too bright compared to red and blue
+  CRGB::Blue,
+  CRGB::Black,
 
-        CRGB::Red,
-        CRGB::Gray,
-        CRGB::Blue,
-        CRGB::Black,
+  CRGB::Red,
+  CRGB::Gray,
+  CRGB::Blue,
+  CRGB::Black,
 
-        CRGB::Red,
-        CRGB::Red,
-        CRGB::Gray,
-        CRGB::Gray,
-        CRGB::Blue,
-        CRGB::Blue,
-        CRGB::Black,
-        CRGB::Black};
+  CRGB::Red,
+  CRGB::Red,
+  CRGB::Gray,
+  CRGB::Gray,
+  CRGB::Blue,
+  CRGB::Blue,
+  CRGB::Black,
+  CRGB::Black
+};
 
 // Additionl notes on FastLED compact palettes:
 //
